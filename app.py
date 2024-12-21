@@ -1,8 +1,6 @@
-
-# Simple Secure Web Application with Flask
+# Simple Insecure Web Application with Flask
 from flask import Flask, request, render_template, redirect, url_for, session, flash
 import sqlite3
-from werkzeug.security import generate_password_hash, check_password_hash
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -27,15 +25,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-# Secure headers
-@app.after_request
-def apply_secure_headers(response):
-    response.headers["Content-Security-Policy"] = "default-src 'self';"
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    return response
-
 # Routes
 @app.route('/')
 def index():
@@ -50,11 +39,11 @@ def index():
 def register():
     if request.method == 'POST':
         username = request.form['username']
-        password = generate_password_hash(request.form['password'])
+        password = request.form['password']  # Password stored in plain text (vulnerable)
         conn = sqlite3.connect('app.db')
         cursor = conn.cursor()
         try:
-            cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
+            cursor.execute(f"INSERT INTO users (username, password) VALUES ('{username}', '{password}')")  # Vulnerable to SQL injection
             conn.commit()
         except sqlite3.IntegrityError:
             flash('Username already exists!')
@@ -71,10 +60,11 @@ def login():
         password = request.form['password']
         conn = sqlite3.connect('app.db')
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+        query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"  # Vulnerable to SQL injection
+        cursor.execute(query)
         user = cursor.fetchone()
         conn.close()
-        if user and check_password_hash(user[2], password):
+        if user:
             session['user_id'] = user[0]
             session['username'] = user[1]
             flash('Login successful!')
@@ -98,7 +88,8 @@ def create():
         content = request.form['content']
         conn = sqlite3.connect('app.db')
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO posts (title, content, user_id) VALUES (?, ?, ?)", (title, content, session['user_id']))
+        query = f"INSERT INTO posts (title, content, user_id) VALUES ('{title}', '{content}', {session['user_id']})"  # Vulnerable to SQL injection
+        cursor.execute(query)
         conn.commit()
         conn.close()
         flash('Post created successfully!')
