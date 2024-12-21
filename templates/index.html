@@ -1,0 +1,13 @@
+
+<!DOCTYPE html>
+<html>
+<body>
+<h1>Posts</h1>
+{% for post in posts %}
+<h2>{{ post[0] }}</h2>
+<p>{{ post[1] }}</p>
+<small>by {{ post[2] }}</small>
+<hr>
+{% endfor %}
+</body>
+</html>
